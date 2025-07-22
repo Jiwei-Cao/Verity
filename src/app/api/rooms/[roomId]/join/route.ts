@@ -22,7 +22,9 @@ export async function POST(
     if (existingPlayer) {
       return NextResponse.json({
         success: true,
-        player: existingPlayer
+        player: existingPlayer,
+        room,
+        chatMessages: gameStore.getChatMessages(roomId)
       })
     }
 
@@ -66,12 +68,15 @@ export async function POST(
     // Broadcast updates
     await Promise.all([
       pusher.trigger(`room-${roomId}`, 'room-update', room),
-      pusher.trigger(`room-${roomId}`, 'chat-message', welcomeMessage)
+      pusher.trigger(`room-${roomId}`, 'chat-message', welcomeMessage),
+      pusher.trigger(`room-${roomId}`, 'player-joined', { player, room })
     ])
 
     return NextResponse.json({
       success: true,
-      player
+      player,
+      room,
+      chatMessages: gameStore.getChatMessages(roomId)
     })
   } catch (error) {
     console.error('Error joining room:', error)

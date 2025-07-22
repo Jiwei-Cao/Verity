@@ -15,6 +15,9 @@ export default function RoomPage() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [, setPusher] = useState<Pusher | null>(null)
+  const [truths, setTruths] = useState(['', '', '', '', ''])
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [generatedRounds, setGeneratedRounds] = useState(null)
 
   useEffect(() => {
     if (hasJoined) {
@@ -31,6 +34,10 @@ export default function RoomPage() {
       
       channel.bind('chat-message', (data: ChatMessage) => {
         setChatMessages(prev => [...prev, data])
+      })
+
+      channel.bind('player-joined', (data: { player: Player; room: GameRoom }) => {
+        setRoom(data.room)
       })
 
       return () => {
@@ -53,6 +60,8 @@ export default function RoomPage() {
       const data = await response.json()
       if (data.success) {
         setCurrentPlayer(data.player)
+        setRoom(data.room)
+        setChatMessages(data.chatMessages || [])
         setHasJoined(true)
       }
     } catch (error) {
@@ -80,24 +89,50 @@ export default function RoomPage() {
   }
 
   const generateStatements = async () => {
-    if (!currentPlayer) return
+    if (!currentPlayer || !roomId) {
+      console.error('Missing currentPlayer or roomId:', { currentPlayer, roomId })
+      return
+    }
+    
+    // Check if all truths are filled
+    const validTruths = truths.filter(truth => truth.trim() !== '')
+    if (validTruths.length !== 5) {
+      alert('Please fill in all 5 truths before generating lies.')
+      return
+    }
+
+    setIsGenerating(true)
 
     try {
+      console.log('Sending request to:', `/api/rooms/${roomId}/generate`)
+      console.log('Room ID:', roomId)
+      console.log('Player Name:', currentPlayer.name)
+      console.log('Available rooms in client state:', room?.id)
+      
       const response = await fetch(`/api/rooms/${roomId}/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          playerId: currentPlayer.id,
-          playerName: currentPlayer.name 
+          playerName: currentPlayer.name,
+          truths: validTruths
         }),
       })
       
       const data = await response.json()
+      console.log('API Response:', data)
+      
       if (data.success) {
+        setGeneratedRounds(data.rounds)
         // Room will be updated via Pusher
+      } else {
+        console.error('API Error:', data.error)
+        alert(`Error: ${data.error}`)
       }
     } catch (error) {
       console.error('Failed to generate statements:', error)
+      alert('Failed to generate statements. Please try again.')
+    } finally {
+      setIsGenerating(false)
     }
   }
 
@@ -179,15 +214,51 @@ export default function RoomPage() {
               
               {canGenerate && (
                 <div className="mb-6">
+                  <h3 className="text-lg font-semibold mb-4">Enter 5 Truths About Yourself</h3>
+                  {truths.map((truth, index) => (
+                    <div key={index} className="mb-3">
+                      <input
+                        type="text"
+                        placeholder={`Truth ${index + 1}...`}
+                        value={truth}
+                        onChange={(e) => {
+                          const newTruths = [...truths]
+                          newTruths[index] = e.target.value
+                          setTruths(newTruths)
+                        }}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  ))}
                   <button
                     onClick={generateStatements}
-                    className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-semibold"
+                    disabled={isGenerating || truths.some(t => !t.trim())}
+                    className="bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white px-6 py-3 rounded-lg font-semibold"
                   >
-                    Generate Your Statements
+                    {isGenerating ? 'Generating Lies...' : 'Generate Lies'}
                   </button>
                   <p className="text-sm text-gray-600 mt-2">
-                    Generate 3 statements: 2 lies and 1 truth about yourself
+                    Enter 5 true statements, then click to generate believable lies for each
                   </p>
+                </div>
+              )}
+
+              {generatedRounds && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold mb-4">Your Generated Rounds</h3>
+                  {generatedRounds.map((round: any, index: number) => (
+                    <div key={index} className="mb-4 p-4 border rounded-lg">
+                      <h4 className="font-medium mb-2">Round {index + 1}</h4>
+                      <p className="text-sm text-gray-600 mb-2">Truth: {round.truth}</p>
+                      <div className="space-y-2">
+                        {round.statements.map((statement: string, stmtIndex: number) => (
+                          <div key={stmtIndex} className="p-2 bg-gray-50 rounded">
+                            {statement} {stmtIndex === round.truthIndex && '(Truth)'}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
 

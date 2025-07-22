@@ -1,5 +1,10 @@
 import { GameRoom, ChatMessage } from '@/types/game';
 
+// Global singleton to survive Next.js hot reloads in development
+declare global {
+  var __gameStore: GameStore | undefined;
+}
+
 // In-memory storage for game rooms and chat messages
 class GameStore {
   private rooms: Map<string, GameRoom> = new Map();
@@ -7,6 +12,7 @@ class GameStore {
   private roomTimestamps: Map<string, number> = new Map();
 
   constructor() {
+    console.log('GameStore constructor called - creating new instance');
     // Clean up old rooms every 5 minutes
     if (typeof window === 'undefined') {
       setInterval(() => {
@@ -33,6 +39,7 @@ class GameStore {
   }
 
   createRoom(id: string): GameRoom {
+    console.log(`GameStore: Creating room ${id}`);
     const room: GameRoom = {
       id,
       players: [],
@@ -45,13 +52,18 @@ class GameStore {
     this.rooms.set(id, room);
     this.chats.set(id, []);
     this.updateRoomTimestamp(id);
+    console.log(`GameStore: Room ${id} created. Total rooms: ${this.rooms.size}`);
     return room;
   }
 
   getRoom(id: string): GameRoom | undefined {
+    console.log(`GameStore: Looking for room ${id}. Available rooms: [${this.getAllRooms().join(', ')}]`);
     const room = this.rooms.get(id);
     if (room) {
       this.updateRoomTimestamp(id);
+      console.log(`GameStore: Found room ${id}`);
+    } else {
+      console.log(`GameStore: Room ${id} not found`);
     }
     return room;
   }
@@ -81,4 +93,11 @@ class GameStore {
   }
 }
 
-export const gameStore = new GameStore();
+// Use global singleton to survive Next.js hot reloads in development
+if (typeof window === 'undefined') {
+  if (!global.__gameStore) {
+    global.__gameStore = new GameStore();
+  }
+}
+
+export const gameStore = global.__gameStore || new GameStore();

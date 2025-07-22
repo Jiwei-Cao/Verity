@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { gameStore } from '@/lib/game-store'
 import { pusher } from '@/lib/pusher'
-import { GameRound } from '@/types/game'
+import { PlayerRound, Player } from '@/types/game'
 import Anthropic from '@anthropic-ai/sdk'
 
 const anthropic = new Anthropic({
@@ -13,25 +13,52 @@ export async function POST(
   { params }: { params: { roomId: string } }
 ) {
   try {
-    const { playerId, playerName } = await request.json()
+    const { playerName, truths } = await request.json()
     const roomId = params.roomId
     
-    const room = gameStore.getRoom(roomId)
-    if (!room) {
-      console.log(`Generate: Room ${roomId} not found. Available rooms:`, gameStore.getAllRooms())
+    console.log(`Generate API: Received request for roomId: ${roomId}`)
+    console.log(`Generate API: Params:`, params)
+    console.log(`Generate API: PlayerName: ${playerName}`)
+    console.log(`Generate API: Truths count: ${truths?.length || 0}`)
+    
+    if (!truths || !Array.isArray(truths) || truths.length !== 5) {
       return NextResponse.json(
-        { success: false, error: 'Room not found' },
+        { success: false, error: 'Must provide exactly 5 truths' },
+        { status: 400 }
+      )
+    }
+    
+    let room = gameStore.getRoom(roomId)
+    if (!room) {
+      console.log(`Generate API: Room ${roomId} not found, attempting to create it`)
+      // Try to create the room if it doesn't exist (fallback for development hot reloads)
+      room = gameStore.createRoom(roomId)
+      console.log(`Generate API: Created new room ${roomId}`)
+    }
+    
+    if (!room) {
+      console.log(`Generate: Failed to create room ${roomId}`)
+      return NextResponse.json(
+        { success: false, error: `Unable to find or create room ${roomId}` },
         { status: 404 }
       )
     }
 
-    // Find player and check if they can generate
-    const player = room.players.find(p => p.id === playerId)
+    console.log(`Generate API: Looking for player ${playerName} in room ${roomId}`)
+    console.log(`Generate API: Room players:`, room.players.map(p => p.name))
+    
+    let player = room.players.find(p => p.name === playerName)
     if (!player) {
-      return NextResponse.json(
-        { success: false, error: 'Player not found' },
-        { status: 404 }
-      )
+      console.log(`Generate API: Player ${playerName} not found, creating new player`)
+      // Create player if not found (fallback for development hot reloads)
+      player = {
+        id: Math.random().toString(36).substring(2, 9),
+        name: playerName,
+        hasGenerated: false
+      }
+      room.players.push(player)
+      gameStore.updateRoom(roomId, room)
+      console.log(`Generate API: Created new player ${playerName}`)
     }
 
     if (player.hasGenerated) {
@@ -41,54 +68,52 @@ export async function POST(
       )
     }
 
-    // Generate statements using Claude API
-    const prompt = `Generate exactly 3 statements about a person named "${playerName}". 
-    - 2 statements should be lies (false/made-up)
-    - 1 statement should be plausible as truth
-    - Make them interesting and personal
-    - Each statement should be 1-2 sentences
-    - Return only the 3 statements, numbered 1-3, nothing else
-    - Make the statements sound believable and engaging for a game`
+    const playerRounds: PlayerRound[] = []
 
-    const message = await anthropic.messages.create({
-      model: 'claude-3-haiku-20240307',
-      max_tokens: 300,
-      messages: [{
-        role: 'user',
-        content: prompt
-      }]
-    })
+    for (let i = 0; i < truths.length; i++) {
+      const truth = truths[i]
+      
+      const prompt = `Generate 2 believable but false statements to accompany the following truth: '${truth}'. Output only the 2 false statements as a plain numbered list.`
 
-    const responseText = message.content[0].type === 'text' ? message.content[0].text : ''
-    
-    // Parse the response to extract statements
-    const lines = responseText.split('\n').filter(line => line.trim())
-    const statements = lines
-      .filter(line => /^\d+\./.test(line.trim()))
-      .map(line => line.replace(/^\d+\.\s*/, '').trim())
-      .slice(0, 3)
+      const message = await anthropic.messages.create({
+        model: 'claude-3-haiku-20240307',
+        max_tokens: 200,
+        messages: [{
+          role: 'user',
+          content: prompt
+        }]
+      })
 
-    if (statements.length !== 3) {
-      throw new Error('Failed to generate exactly 3 statements')
+      const responseText = message.content[0].type === 'text' ? message.content[0].text : ''
+      
+      const lines = responseText.split('\n').filter(line => line.trim())
+      const lies = lines
+        .filter(line => /^\d+\./.test(line.trim()))
+        .map(line => line.replace(/^\d+\.\s*/, '').trim())
+        .slice(0, 2)
+
+      if (lies.length !== 2) {
+        throw new Error(`Failed to generate exactly 2 lies for truth: "${truth}"`)
+      }
+
+      const statements = [...lies, truth]
+      const truthIndex = Math.floor(Math.random() * 3)
+      
+      const shuffledStatements = [...statements]
+      shuffledStatements[truthIndex] = truth
+      shuffledStatements[truthIndex === 0 ? 1 : 0] = lies[0]
+      shuffledStatements[truthIndex === 2 ? 1 : 2] = lies[1]
+
+      playerRounds.push({
+        truth,
+        statements: shuffledStatements,
+        truthIndex
+      })
     }
 
-    // Randomly select which one is the "truth" (for game purposes)
-    const truthIndex = Math.floor(Math.random() * 3)
-
-    // Create game round
-    const gameRound: GameRound = {
-      playerName,
-      statements,
-      truthIndex,
-      guesses: {},
-      revealed: false
-    }
-
-    // Update room state
-    room.rounds.push(gameRound)
+    player.rounds = playerRounds
     player.hasGenerated = true
 
-    // Check if all players have generated
     const allGenerated = room.players.every(p => p.hasGenerated)
     if (allGenerated) {
       room.gamePhase = 'guessing'
@@ -97,10 +122,12 @@ export async function POST(
 
     gameStore.updateRoom(roomId, room)
 
-    // Broadcast room update
     await pusher.trigger(`room-${roomId}`, 'room-update', room)
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ 
+      success: true, 
+      rounds: playerRounds
+    })
   } catch (error) {
     console.error('Error generating statements:', error)
     return NextResponse.json(

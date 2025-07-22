@@ -2,6 +2,13 @@ export interface Player {
   id: string;
   name: string;
   hasGenerated: boolean;
+  rounds?: PlayerRound[];
+}
+
+export interface PlayerRound {
+  truth: string;
+  statements: string[];
+  truthIndex: number;
 }
 
 export interface GameRoom {
