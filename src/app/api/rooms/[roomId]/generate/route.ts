@@ -54,7 +54,9 @@ export async function POST(
       player = {
         id: Math.random().toString(36).substring(2, 9),
         name: playerName,
-        hasGenerated: false
+        hasGenerated: false,
+        ready: false,
+        reviewComplete: false
       }
       room.players.push(player)
       gameStore.updateRoom(roomId, room)
@@ -106,6 +108,8 @@ export async function POST(
 
       playerRounds.push({
         truth,
+        lie1: lies[0],
+        lie2: lies[1],
         statements: shuffledStatements,
         truthIndex
       })
@@ -113,11 +117,12 @@ export async function POST(
 
     player.rounds = playerRounds
     player.hasGenerated = true
+    player.ready = true
+    player.reviewComplete = true // Auto-mark as reviewed since it's read-only
 
     const allGenerated = room.players.every(p => p.hasGenerated)
-    if (allGenerated) {
-      room.gamePhase = 'guessing'
-      room.currentPlayer = room.players[0].id
+    if (allGenerated && room.players.length === 2) {
+      room.gamePhase = 'ready'
     }
 
     gameStore.updateRoom(roomId, room)
@@ -126,7 +131,11 @@ export async function POST(
 
     return NextResponse.json({ 
       success: true, 
-      rounds: playerRounds
+      rounds: playerRounds.map(round => ({
+        truth: round.truth,
+        lie1: round.lie1,
+        lie2: round.lie2
+      }))
     })
   } catch (error) {
     console.error('Error generating statements:', error)

@@ -2,11 +2,15 @@ export interface Player {
   id: string;
   name: string;
   hasGenerated: boolean;
+  ready: boolean;
+  reviewComplete: boolean;
   rounds?: PlayerRound[];
 }
 
 export interface PlayerRound {
   truth: string;
+  lie1: string;
+  lie2: string;
   statements: string[];
   truthIndex: number;
 }
@@ -14,19 +18,30 @@ export interface PlayerRound {
 export interface GameRoom {
   id: string;
   players: Player[];
-  currentRound: number;
-  maxRounds: number;
-  gamePhase: 'waiting' | 'generating' | 'guessing' | 'finished';
-  currentPlayer: string | null;
+  currentRound: number; // Global round number (1-10)
+  maxRounds: number; // Total rounds = 10
+  gamePhase: 'waiting' | 'generating' | 'ready' | 'playing' | 'finished';
+  roundPhase: 'playing' | 'intermission';
+  currentPlayer: string | null; // Player whose statements are being shown
+  currentGuesser: string | null; // Player who is guessing
   rounds: GameRound[];
+  started: boolean;
+  hostId?: string;
+  timerStart?: number;
+  timerDuration: number;
+  playersReady: string[];
 }
 
 export interface GameRound {
   playerName: string;
+  playerId: string;
   statements: string[];
   truthIndex: number;
   guesses: { [playerId: string]: number };
   revealed: boolean;
+  guess?: number;
+  guessedCorrectly?: boolean;
+  timedOut?: boolean;
 }
 
 export interface ChatMessage {

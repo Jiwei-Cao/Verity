@@ -40,7 +40,14 @@ export async function POST(
     const player: Player = {
       id: Math.random().toString(36).substring(2, 9),
       name: playerName,
-      hasGenerated: false
+      hasGenerated: false,
+      ready: false,
+      reviewComplete: false
+    }
+
+    // Set first player as host
+    if (room.players.length === 0) {
+      room.hostId = player.id
     }
 
     // Add player to room

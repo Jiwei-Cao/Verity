@@ -43,11 +43,17 @@ class GameStore {
     const room: GameRoom = {
       id,
       players: [],
-      currentRound: 0,
-      maxRounds: 5,
+      currentRound: 1,
+      maxRounds: 10,
       gamePhase: 'waiting',
+      roundPhase: 'playing',
       currentPlayer: null,
+      currentGuesser: null,
       rounds: [],
+      started: false,
+      hostId: undefined,
+      timerDuration: 30000, // 30 seconds
+      playersReady: [],
     };
     this.rooms.set(id, room);
     this.chats.set(id, []);
