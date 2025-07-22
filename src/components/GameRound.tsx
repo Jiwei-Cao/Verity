@@ -7,7 +7,7 @@ interface GameRoundProps {
   room: GameRoom
   currentPlayer: Player
   roomId: string
-  onScoreUpdate: (isCorrect: boolean) => void
+  onScoreUpdate: () => void
 }
 
 interface ShuffledStatement {
@@ -23,7 +23,6 @@ export default function GameRound({
 }: GameRoundProps) {
   const [shuffledStatements, setShuffledStatements] = useState<ShuffledStatement[]>([])
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
-  const [showFeedback, setShowFeedback] = useState(false)
   const [isCorrect, setIsCorrect] = useState(false)
   const [timeLeft, setTimeLeft] = useState(30)
   const [timedOut, setTimedOut] = useState(false)
@@ -45,7 +44,6 @@ export default function GameRound({
     
     setShuffledStatements(shuffled)
     setSelectedIndex(null)
-    setShowFeedback(false)
     setIsCorrect(false)
     setTimedOut(false)
     
@@ -62,7 +60,6 @@ export default function GameRound({
     if (!isMyTurn || room.roundPhase !== 'playing') return
     
     setTimedOut(true)
-    setShowFeedback(true)
     
     try {
       await fetch(`/api/rooms/${roomId}/timeout`, {
@@ -102,8 +99,7 @@ export default function GameRound({
     
     setSelectedIndex(shuffledIndex)
     setIsCorrect(wasCorrect)
-    setShowFeedback(true)
-    onScoreUpdate(wasCorrect)
+    onScoreUpdate()
 
     try {
       await fetch(`/api/rooms/${roomId}/guess`, {
@@ -160,7 +156,6 @@ export default function GameRound({
     return <div>Loading round...</div>
   }
 
-  const correctStatement = currentRound.statements[currentRound.truthIndex]
   const playerName = currentPlayerObj?.name || 'Player'
 
   // Intermission Phase

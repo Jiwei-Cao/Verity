@@ -4,11 +4,10 @@ import { useRouter } from 'next/navigation'
 
 interface TopNavigationProps {
   roomId: string
-  currentPlayer?: { id: string; name: string } | null
   onLeaveRoom?: () => void
 }
 
-export default function TopNavigation({ roomId, currentPlayer, onLeaveRoom }: TopNavigationProps) {
+export default function TopNavigation({ roomId, onLeaveRoom }: TopNavigationProps) {
   const router = useRouter()
 
   const handleLeaveRoom = async () => {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { gameStore } from '@/lib/game-store'
 import { pusher } from '@/lib/pusher'
-import { PlayerRound, Player } from '@/types/game'
+import { PlayerRound } from '@/types/game'
 import Anthropic from '@anthropic-ai/sdk'
 
 const anthropic = new Anthropic({

@@ -13,6 +13,10 @@ export interface PlayerRound {
   lie2: string;
   statements: string[];
   truthIndex: number;
+  guess?: number;
+  guessedCorrectly?: boolean;
+  revealed?: boolean;
+  timedOut?: boolean;
 }
 
 export interface GameRoom {

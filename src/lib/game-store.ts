@@ -2,6 +2,7 @@ import { GameRoom, ChatMessage } from '@/types/game';
 
 // Global singleton to survive Next.js hot reloads in development
 declare global {
+  // eslint-disable-next-line no-var
   var __gameStore: GameStore | undefined;
 }
 

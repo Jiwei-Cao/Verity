@@ -28,11 +28,9 @@ export default function RoomPage() {
   const [truths, setTruths] = useState(['', '', '', '', ''])
   const [isGenerating, setIsGenerating] = useState(false)
   const [generatedRounds, setGeneratedRounds] = useState<Array<{truth: string, lie1: string, lie2: string}> | null>(null)
-  const [currentRoundIndex, setCurrentRoundIndex] = useState(0)
   const [scores, setScores] = useState<{[playerId: string]: number}>({})
   const [gameStarted, setGameStarted] = useState(false)
   const [isRestarting, setIsRestarting] = useState(false)
-  const [isLeaving, setIsLeaving] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -59,7 +57,6 @@ export default function RoomPage() {
       channel.bind('game-started', (data: { room: GameRoom; message: string }) => {
         setRoom(data.room)
         setGameStarted(true)
-        setCurrentRoundIndex(0)
         // Initialize scores
         const initialScores: {[playerId: string]: number} = {}
         data.room.players.forEach(player => {
@@ -70,7 +67,6 @@ export default function RoomPage() {
 
       channel.bind('round-started', (data: { room: GameRoom }) => {
         setRoom(data.room)
-        setCurrentRoundIndex(data.room.currentRound - 1) // Convert to 0-based for internal tracking
       })
 
       channel.bind('round-result', (data: { room: GameRoom; isCorrect: boolean; timedOut?: boolean }) => {
@@ -94,7 +90,6 @@ export default function RoomPage() {
       channel.bind('room-restart', (data: { room: GameRoom; message: string }) => {
         setRoom(data.room)
         setGameStarted(false)
-        setCurrentRoundIndex(0)
         setTruths(['', '', '', '', ''])
         setGeneratedRounds(null)
         setScores({})
@@ -253,7 +248,7 @@ export default function RoomPage() {
   const showStartButton = room?.gamePhase === 'ready' && currentPlayer && room?.hostId === currentPlayer.id
   const isPlaying = room?.gamePhase === 'playing' && gameStarted
 
-  const handleScoreUpdate = (isCorrect: boolean) => {
+  const handleScoreUpdate = () => {
     // Score updates are now handled via Pusher events
   }
 
@@ -283,7 +278,6 @@ export default function RoomPage() {
   const leaveRoom = async () => {
     if (!currentPlayer) return
     
-    setIsLeaving(true)
     try {
       const response = await fetch(`/api/rooms/${roomId}/leave`, {
         method: 'POST',
@@ -302,7 +296,6 @@ export default function RoomPage() {
       console.error('Error leaving room:', error)
       alert('Failed to leave room. Please try again.')
     } finally {
-      setIsLeaving(false)
     }
   }
 
@@ -311,7 +304,6 @@ export default function RoomPage() {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50">
       <TopNavigation 
         roomId={roomId} 
-        currentPlayer={currentPlayer}
         onLeaveRoom={leaveRoom}
       />
       <div className="p-4 sm:p-6">
