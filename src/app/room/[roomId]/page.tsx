@@ -11,6 +11,10 @@ import MyRoundsPreview from '@/components/MyRoundsPreview'
 import TopNavigation from '@/components/TopNavigation'
 import { useRouter } from 'next/navigation'
 
+const capitalizePhase = (phase: string): string => {
+  return phase.charAt(0).toUpperCase() + phase.slice(1)
+}
+
 export default function RoomPage() {
   const params = useParams()
   const roomId = params.roomId as string
@@ -304,42 +308,61 @@ export default function RoomPage() {
 
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50">
       <TopNavigation 
         roomId={roomId} 
         currentPlayer={currentPlayer}
         onLeaveRoom={leaveRoom}
       />
-      <div className="p-4">
-      <div className="max-w-6xl mx-auto">
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-          <h1 className="text-3xl font-bold mb-4">Verity - Room {roomId}</h1>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-600">
-                {isPlaying ? `Round ${room?.currentRound || 1} of ${room?.maxRounds || 10}` : `Phase: ${room?.gamePhase}`}
-              </p>
-              <p className="text-sm text-gray-500">
-                {isPlaying && room?.roundPhase === 'playing' ? (
-                  room?.currentGuesser === currentPlayer?.id ? 
-                    `Your turn to guess ${room?.players.find(p => p.id === room.currentPlayer)?.name}'s statements` :
-                    `${room?.players.find(p => p.id === room.currentGuesser)?.name} is guessing your statements`
-                ) : isPlaying && room?.roundPhase === 'intermission' ? (
-                  'Intermission - Review results'
+      <div className="p-4 sm:p-6">
+      <div className="max-w-7xl mx-auto">
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 sm:p-8 mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold mb-4 text-gray-800 flex items-center">
+            <span className="mr-3">🎯</span>
+            Verity - Room {roomId}
+          </h1>
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div className="flex-1">
+              <p className="text-gray-700 font-semibold text-base sm:text-lg mb-2">
+                {isPlaying ? (
+                  <span className="inline-flex items-center px-3 py-1 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+                    🎮 Round {room?.currentRound || 1} of {room?.maxRounds || 10}
+                  </span>
                 ) : (
-                  `Phase: ${room?.gamePhase}`
+                  <span className="inline-flex items-center px-3 py-1 rounded-full bg-gray-100 text-gray-700 border border-gray-200">
+                    📊 Phase: {capitalizePhase(room?.gamePhase || '')}
+                  </span>
                 )}
               </p>
+              <p className="text-sm text-gray-600 font-medium">
+                {isPlaying && room?.roundPhase === 'playing' ? (
+                  room?.currentGuesser === currentPlayer?.id ? 
+                    `🎯 Your turn to guess ${room?.players.find(p => p.id === room.currentPlayer)?.name}'s statements` :
+                    `⏳ ${room?.players.find(p => p.id === room.currentGuesser)?.name} is guessing your statements`
+                ) : isPlaying && room?.roundPhase === 'intermission' ? (
+                  '⏸️ Intermission - Review results'
+                ) : null}
+              </p>
             </div>
-            <div className="flex space-x-2">
-              {room?.players.map((player) => (
-                <div key={player.id} className="bg-blue-100 px-3 py-1 rounded-full text-sm">
-                  {player.name} 
-                  {player.ready && ' ✓'}
-                  {room?.hostId === player.id && ' 👑'}
-                  {isPlaying && ` (${scores[player.id] || 0}/5)`}
-                </div>
-              ))}
+            <div className="flex flex-wrap gap-2">
+              {room?.players.map((player) => {
+                const isMe = currentPlayer?.id === player.id
+                return (
+                  <div key={player.id} className={`px-3 py-2 rounded-xl text-sm font-medium border-2 transition-all ${
+                    isMe 
+                      ? 'bg-gradient-to-r from-blue-100 to-purple-100 text-blue-800 border-blue-200' 
+                      : 'bg-gray-100 text-gray-700 border-gray-200'
+                  }`}>
+                    <span className="flex items-center space-x-1">
+                      <span>{player.name}</span>
+                      {player.ready && <span className="text-green-600">✓</span>}
+                      {room?.hostId === player.id && <span>👑</span>}
+                      {isMe && <span className="text-blue-600 text-xs">(You)</span>}
+                      {isPlaying && <span className="text-gray-600 text-xs">({scores[player.id] || 0}/5)</span>}
+                    </span>
+                  </div>
+                )
+              })}
             </div>
           </div>
         </div>
@@ -358,8 +381,11 @@ export default function RoomPage() {
           
           {/* Game Area */}
           <div className={isPlaying ? "lg:col-span-2" : "lg:col-span-3"}>
-            <div className="bg-white rounded-lg shadow-lg p-6">
-              <h2 className="text-xl font-semibold mb-4">Game</h2>
+            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 sm:p-8">
+              <h2 className="text-xl sm:text-2xl font-bold mb-6 text-gray-800 flex items-center">
+                <span className="mr-2">🎮</span>
+                Game
+              </h2>
               
               {showStartButton && room && currentPlayer && (
                 <StartGameButton 
@@ -492,28 +518,42 @@ export default function RoomPage() {
           </div>
 
           {/* Chat */}
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <h2 className="text-xl font-semibold mb-4">Chat</h2>
-            <div className="h-80 overflow-y-auto mb-4 border rounded p-4 space-y-2">
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-4 sm:p-6 flex flex-col h-auto lg:h-full min-h-[400px] max-h-[600px] lg:max-h-none">
+            <h2 className="text-xl sm:text-2xl font-bold mb-4 text-gray-800 flex items-center flex-shrink-0">
+              <span className="mr-2">💬</span>
+              Chat
+            </h2>
+            <div className="flex-1 overflow-y-auto mb-4 border-2 border-gray-200 rounded-xl p-3 space-y-1 bg-gradient-to-b from-gray-50 to-white min-h-0">
               {chatMessages.map((msg) => (
-                <div key={msg.id} className={`${msg.isSystem ? 'italic text-gray-500' : ''}`}>
-                  <span className="font-semibold">{msg.playerName}:</span> {msg.message}
+                <div key={msg.id} className={`p-1.5 rounded-lg text-sm ${
+                  msg.isSystem 
+                    ? 'italic text-gray-500 bg-gray-100 text-center' 
+                    : 'bg-white border border-gray-200 shadow-sm'
+                }`}>
+                  {!msg.isSystem ? (
+                    <div>
+                      <span className="font-semibold text-blue-700">{msg.playerName}:</span>
+                      <span className="ml-2 text-gray-800">{msg.message}</span>
+                    </div>
+                  ) : (
+                    <span className="text-gray-600">ℹ️ {msg.message}</span>
+                  )}
                 </div>
               ))}
             </div>
-            <div className="flex space-x-2">
+            <div className="flex gap-2 flex-shrink-0 w-full">
               <input
                 type="text"
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
                 placeholder="Type a message..."
-                className="flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="flex-1 min-w-0 px-3 py-2 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm"
                 onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
               />
               <button
                 onClick={sendMessage}
                 disabled={!newMessage.trim()}
-                className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white px-4 py-2 rounded-lg"
+                className="flex-shrink-0 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:from-gray-300 disabled:to-gray-300 text-white px-3 sm:px-4 py-2 rounded-xl font-semibold transition-all duration-200 transform hover:scale-105 text-sm"
               >
                 Send
               </button>
