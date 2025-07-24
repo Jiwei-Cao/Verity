@@ -4,6 +4,9 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'Verity',
   description: 'A multiplayer game of lies and truths',
+  icons: {
+    icon: '/favicon.png',
+  }, 
 }
 
 export default function RootLayout({
