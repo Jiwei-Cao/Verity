@@ -30,7 +30,7 @@ This section explains how to run Verity locally.
 
 ### 1. Clone the repo
 ```bash
-git clone https://github.com/Jiwei-Cao/verity
+git clone https://github.com/jiwei-cao/verity
 cd verity
 2. Install dependencies
 bash
